@@ -213,7 +213,7 @@ module ActsAsRevisionable
             begin
               read_only = self.class.first(:conditions => {self.class.primary_key => self.id}, :readonly => true)
               if read_only
-                revision = read_only.create_revision!
+                revision = read_only.create_revision!(self)
                 truncate_revisions!
               end
             rescue => e
@@ -243,23 +243,20 @@ module ActsAsRevisionable
       end
     end
 
-    # Create a revision record based on this record and save it to the database.
-    def create_revision!
+    # Build a revision record based on this record
+    def build_revision(base_record = self)
       revision_options = self.class.acts_as_revisionable_options
       revision = revision_record_class.new(self, revision_options[:encoding])
-      if revision_options[:meta].is_a?(Hash)
-        revision_options[:meta].each do |attribute, value|
-          set_revision_meta_attribute(revision, attribute, value)
-        end
-      elsif revision_options[:meta].is_a?(Array)
-        revision_options[:meta].each do |attribute|
-          set_revision_meta_attribute(revision, attribute, attribute.to_sym)
-        end
-      elsif revision_options[:meta]
-        set_revision_meta_attribute(revision, revision_options[:meta], revision_options[:meta].to_sym)
-      end
+      set_revision_meta_attributes(revision_options[:meta], revision, base_record)
+
+      revision
+    end
+
+    # Create a revision record based on this record and save it to the database.
+    def create_revision!(base_record = self)
+      revision = build_revision(base_record)
       revision.save!
-      return revision
+      revision
     end
 
     # Truncate the number of revisions kept for this record. Available options are :limit and :minimum_age.
@@ -298,6 +295,21 @@ module ActsAsRevisionable
     def update_with_revision
       store_revision do
         update_without_revision
+      end
+    end
+
+    def set_revision_meta_attributes(meta_options, revision, base_record = self)
+      if meta_options.is_a?(Hash)
+        meta_options.each do |attribute, value|
+          set_revision_meta_attribute(revision, attribute, value)
+        end
+      elsif meta_options.is_a?(Array)
+        meta_options.each do |attribute|
+          set_revision_meta_attribute(revision, attribute, attribute.to_sym)
+        end
+      elsif meta_options
+        value = base_record.send(meta_options)
+        set_revision_meta_attribute(revision, meta_options, value)
       end
     end
 

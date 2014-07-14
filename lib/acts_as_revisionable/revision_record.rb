@@ -224,7 +224,7 @@ module ActsAsRevisionable
     # Restore a record and all its associations.
     def restore_record(record, attributes)
       if primary_key = record.class.primary_key
-        record.send("#{primary_key.to_s}=", attributes[primary_key.to_s])
+        record.send("#{primary_key}=", attributes[primary_key.to_s])
       end
 
       attrs, association_attrs = attributes_and_associations(record.class, attributes)

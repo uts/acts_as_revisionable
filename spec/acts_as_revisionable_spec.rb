@@ -95,6 +95,15 @@ describe ActsAsRevisionable do
       acts_as_revisionable :on_update => true, :meta => {:label => lambda{|record| "name was '#{record.name}'"}, :updated_by => :updated_by, :version => 1}, :class_name => RevisionRecord2
     end
 
+    class AnotherRevisionableTestModel < ActiveRecord::Base
+      connection.create_table(table_name) do |t|
+        t.string :name
+        t.string :updated_by
+      end unless table_exists?
+      attr_accessor :label
+      acts_as_revisionable :meta => :label, :class_name => RevisionRecord2
+    end
+
     module ActsAsRevisionable
       class RevisionableNamespaceModel < ActiveRecord::Base
         connection.create_table(:revisionable_namespace_models) do |t|
@@ -206,6 +215,17 @@ describe ActsAsRevisionable do
       ActsAsRevisionable::RevisionRecord.count.should == 1
     end
 
+    it "should bring non-database backed accessor values forward into revisions if used as meta data" do
+      record = AnotherRevisionableTestModel.new(:name => "test")
+      record.label = "Alternative Tentacles"
+      record.save!
+      record.store_revision do
+        record.name = "new name"
+        record.save!
+      end
+      record.last_revision.label.should == "Alternative Tentacles"
+    end
+
     it "should always store revisions whenever a record is saved if :on_update is true" do
       record = OtherRevisionableTestModel.create!(:name => "test")
       record.name = "new name"
@@ -265,46 +285,99 @@ describe ActsAsRevisionable do
       ActsAsRevisionable::RevisionRecord.count.should == 1
     end
 
-    it "should set metadata on the revison when creating a revision record using a complex attribute to value mapping" do
-      record_1 = OtherRevisionableTestModel.create!(:name => "test", :updated_by => "dude")
-      RevisionRecord2.count.should == 0
-      record_1.create_revision!
-      RevisionRecord2.count.should == 1
-      revision = record_1.last_revision
-      revision.label.should == "name was 'test'"
-      revision.updated_by.should == "dude"
-      revision.version.should == 1
-    end
+    describe "metadata" do
+      context "when creating a revision record" do
+        it "should set metadata on the revison using a complex attribute to value mapping" do
+          record_1 = OtherRevisionableTestModel.create!(:name => "test", :updated_by => "dude")
+          RevisionRecord2.count.should == 0
+          record_1.create_revision!
+          RevisionRecord2.count.should == 1
+          revision = record_1.last_revision
+          revision.label.should == "name was 'test'"
+          revision.updated_by.should == "dude"
+          revision.version.should == 1
+        end
 
-    it "should set metadata on the revison when creating a revision record using a simply string to define a method to copy" do
-      meta_value = OtherRevisionableTestModel.acts_as_revisionable_options[:meta]
-      begin
-        OtherRevisionableTestModel.acts_as_revisionable_options[:meta] = "label"
-        record_1 = OtherRevisionableTestModel.create!(:name => "test", :updated_by => "dude")
-        record_1.stub(:label => "this is a label")
-        record_1.create_revision!
-        revision = record_1.last_revision
-        revision.label.should == "this is a label"
-        revision.updated_by.should == nil
-        revision.version.should == nil
-      ensure
-        OtherRevisionableTestModel.acts_as_revisionable_options[:meta] = meta_value
+        it "should set metadata on the revison using a simply string to define a method to copy" do
+          meta_value = OtherRevisionableTestModel.acts_as_revisionable_options[:meta]
+          begin
+            OtherRevisionableTestModel.acts_as_revisionable_options[:meta] = "label"
+            record_1 = OtherRevisionableTestModel.create!(:name => "test", :updated_by => "dude")
+            record_1.stub(:label => "this is a label")
+            record_1.create_revision!
+            revision = record_1.last_revision
+            revision.label.should == "this is a label"
+            revision.updated_by.should == nil
+            revision.version.should == nil
+          ensure
+            OtherRevisionableTestModel.acts_as_revisionable_options[:meta] = meta_value
+          end
+        end
+
+        it "should set metadata on the revison record using an array of attribute names to copy" do
+          meta_value = OtherRevisionableTestModel.acts_as_revisionable_options[:meta]
+          begin
+            OtherRevisionableTestModel.acts_as_revisionable_options[:meta] = [:label, "version"]
+            record_1 = OtherRevisionableTestModel.create!(:name => "test", :updated_by => "dude")
+            record_1.stub(:label => "this is a label", :version => 100)
+            record_1.create_revision!
+            revision = record_1.last_revision
+            revision.label.should == "this is a label"
+            revision.updated_by.should == nil
+            revision.version.should == 100
+          ensure
+            OtherRevisionableTestModel.acts_as_revisionable_options[:meta] = meta_value
+          end
+        end
       end
-    end
 
-    it "should set metadata on the revison when creating a revision record using an array of attribute names to copy" do
-      meta_value = OtherRevisionableTestModel.acts_as_revisionable_options[:meta]
-      begin
-        OtherRevisionableTestModel.acts_as_revisionable_options[:meta] = [:label, "version"]
-        record_1 = OtherRevisionableTestModel.create!(:name => "test", :updated_by => "dude")
-        record_1.stub(:label => "this is a label", :version => 100)
-        record_1.create_revision!
-        revision = record_1.last_revision
-        revision.label.should == "this is a label"
-        revision.updated_by.should == nil
-        revision.version.should == 100
-      ensure
-        OtherRevisionableTestModel.acts_as_revisionable_options[:meta] = meta_value
+      context "when initializing a revision record" do
+        it "should be able to build a revision record" do
+          record_1 = RevisionableTestModel.create!(:name => "test")
+          ActsAsRevisionable::RevisionRecord.count.should == 0
+          record_1.build_revision
+          ActsAsRevisionable::RevisionRecord.count.should == 0
+        end
+
+        it "should set metadata on the revison using a complex attribute to value mapping" do
+          record_1 = OtherRevisionableTestModel.create!(:name => "test", :updated_by => "dude")
+          RevisionRecord2.count.should == 0
+          revision = record_1.build_revision
+          RevisionRecord2.count.should == 0
+          revision.label.should == "name was 'test'"
+          revision.updated_by.should == "dude"
+          revision.version.should == 1
+        end
+
+        it "should set metadata on the revison using a simply string to define a method to copy" do
+          meta_value = OtherRevisionableTestModel.acts_as_revisionable_options[:meta]
+          begin
+            OtherRevisionableTestModel.acts_as_revisionable_options[:meta] = "label"
+            record_1 = OtherRevisionableTestModel.create!(:name => "test", :updated_by => "dude")
+            record_1.stub(:label => "this is a label")
+            revision = record_1.build_revision
+            revision.label.should == "this is a label"
+            revision.updated_by.should == nil
+            revision.version.should == nil
+          ensure
+            OtherRevisionableTestModel.acts_as_revisionable_options[:meta] = meta_value
+          end
+        end
+
+        it "should set metadata on the revison using an array of attribute names to copy" do
+          meta_value = OtherRevisionableTestModel.acts_as_revisionable_options[:meta]
+          begin
+            OtherRevisionableTestModel.acts_as_revisionable_options[:meta] = [:label, "version"]
+            record_1 = OtherRevisionableTestModel.create!(:name => "test", :updated_by => "dude")
+            record_1.stub(:label => "this is a label", :version => 100)
+            revision = record_1.build_revision
+            revision.label.should == "this is a label"
+            revision.updated_by.should == nil
+            revision.version.should == 100
+          ensure
+            OtherRevisionableTestModel.acts_as_revisionable_options[:meta] = meta_value
+          end
+        end
       end
     end
 
