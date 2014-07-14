@@ -14,7 +14,7 @@ module ActsAsRevisionable
       def find_revision(klass, id, revision)
         find(:first, :conditions => {:revisionable_type => klass.base_class.to_s, :revisionable_id => id, :revision => revision})
       end
-      
+
       # Find the last revision record for a class.
       def last_revision(klass, id, revision = nil)
         find(:first, :conditions => {:revisionable_type => klass.base_class.to_s, :revisionable_id => id}, :order => "revision DESC")
@@ -54,11 +54,11 @@ module ActsAsRevisionable
           t.timestamp :created_at, :null => false
           t.boolean :trash, :default => false
         end
-        
+
         connection.add_index table_name, :revisionable_id, :name => "#{table_name}_id"
         connection.add_index table_name, [:revisionable_type, :created_at, :trash], :name => "#{table_name}_type_and_created_at"
       end
-      
+
       # Update a version 1.0.x table to the latest version. This method only needs to be called
       # from a migration if you originally created the table with a version 1.0.x version of the gem.
       def update_version_1_table
@@ -113,7 +113,7 @@ module ActsAsRevisionable
       restore_record(record, revision_attributes)
       return record
     end
-    
+
     # Mark this revision as being trash. When trash records are restored, all
     # their revision history is restored as well.
     def trash!
@@ -227,7 +227,7 @@ module ActsAsRevisionable
       rescue => e
         record.errors.add(association, "could not be restored from the revision: #{e.message}")
       end
-      
+
       if associated_record && !associated_record.errors.empty?
         record.errors.add(association, 'could not be restored from the revision')
       end
@@ -253,7 +253,7 @@ module ActsAsRevisionable
       association_attrs.each_pair do |key, values|
         restore_association(record, key, values) if values
       end
-      
+
       # Check if the record already exists in the database and restore its state.
       # This must be done last because otherwise associations on an existing record
       # can be deleted when a revision is restored to memory.

@@ -5,14 +5,14 @@ describe "upgrade to version 1.1" do
   before :each do
     ActsAsRevisionable::Test.create_database
   end
-  
+
   after :each do
     ActsAsRevisionable::Test.delete_database
   end
-  
+
   it "should update an older table definition with the latest definition on create_table" do
     connection = ActsAsRevisionable::RevisionRecord.connection
-    
+
     connection.create_table(:revision_records) do |t|
       t.string :revisionable_type, :null => false, :limit => 100
       t.integer :revisionable_id, :null => false
@@ -21,14 +21,14 @@ describe "upgrade to version 1.1" do
       t.timestamp :created_at, :null => false
     end
     connection.add_index :revision_records, [:revisionable_type, :revisionable_id, :revision], :name => "revisionable", :unique => true
-    
+
     ActsAsRevisionable::RevisionRecord.update_version_1_table
-    
+
     columns = connection.columns(:revision_records)
     trash_column = columns.detect{|c| c.name == 'trash'}
     trash_column.type.should == :boolean
     trash_column.default.should == false
-    
+
     if connection.respond_to?(:index_exists?)
       connection.index_exists?(:revision_records, [:revisionable_type, :revisionable_id, :revision], :name => "revisionable", :unique => true).should_not
       connection.index_exists?(:revision_records, :revisionable_id, :name => "revision_record_id").should
@@ -37,5 +37,5 @@ describe "upgrade to version 1.1" do
       STDERR.puts("Could not check if indexes were updated with this version of ActiveRecord")
     end
   end
-  
+
 end
