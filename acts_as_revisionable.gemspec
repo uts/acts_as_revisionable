@@ -15,17 +15,8 @@ Gem::Specification.new do |s|
   s.description = 'ActiveRecord extension that provides revision support so that history can be tracked and changes can be reverted. Emphasis for this plugin versus similar ones is including associations, saving on storage, and extensibility of the model.'
 
   s.extra_rdoc_files = [ 'README.rdoc' ]
-  s.files = [
-    'MIT-LICENSE',
-    'README.rdoc',
-    'Rakefile',
-    'lib/acts_as_revisionable.rb',
-    'lib/acts_as_revisionable/revision_record.rb',
-    'spec/acts_as_revisionable_spec.rb',
-    'spec/revision_record_spec.rb',
-    'spec/spec_helper.rb',
-    'spec/version_1_1_upgrade_spec.rb'
-  ]
+  s.files         = `git ls-files`.split("\n")
+  s.test_files    = `git ls-files -- spec/*`.split("\n")
   s.require_paths = ['lib']
 
   s.add_runtime_dependency 'activerecord', '>= 2.3.9'
