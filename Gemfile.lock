@@ -1,8 +1,8 @@
 PATH
   remote: .
   specs:
-    acts_as_revisionable (1.2.2)
-      activerecord (>= 2.3.9)
+    acts_as_revisionable (1.2.2.sermo)
+      activerecord (~> 3.2)
 
 GEM
   remote: https://rubygems.org/
