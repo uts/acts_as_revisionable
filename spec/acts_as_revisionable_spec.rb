@@ -37,7 +37,7 @@ describe ActsAsRevisionable do
         t.column :revisionable_test_model_id, :integer
         t.column :other_id, :integer
       end unless table_exists?
-      set_primary_keys "revisionable_test_model_id", "other_id"
+      self.primary_keys =  "revisionable_test_model_id", "other_id"
       belongs_to :revisionable_test_model
     end
 
@@ -292,7 +292,7 @@ describe ActsAsRevisionable do
       begin
         OtherRevisionableTestModel.acts_as_revisionable_options[:meta] = "label"
         record_1 = OtherRevisionableTestModel.create!(:name => "test", :updated_by => "dude")
-        record_1.stub!(:label => "this is a label")
+        record_1.stub(:label => "this is a label")
         record_1.create_revision!
         revision = record_1.last_revision
         revision.label.should == "this is a label"
@@ -308,7 +308,7 @@ describe ActsAsRevisionable do
       begin
         OtherRevisionableTestModel.acts_as_revisionable_options[:meta] = [:label, "version"]
         record_1 = OtherRevisionableTestModel.create!(:name => "test", :updated_by => "dude")
-        record_1.stub!(:label => "this is a label", :version => 100)
+        record_1.stub(:label => "this is a label", :version => 100)
         record_1.create_revision!
         revision = record_1.last_revision
         revision.label.should == "this is a label"
