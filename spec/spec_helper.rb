@@ -27,7 +27,7 @@ else
   composite_primary_key_version = "~>2.3.5"
 end
 
-gem 'composite_primary_keys', composite_primary_key_version
+gem 'composite_primary_keys'
 require 'composite_primary_keys'
 
 require File.expand_path('../../lib/acts_as_revisionable', __FILE__)
