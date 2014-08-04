@@ -235,10 +235,8 @@ module ActsAsRevisionable
 
     # Restore a record and all its associations.
     def restore_record(record, attributes)
-      primary_key = record.class.primary_key
-      primary_key = [primary_key].compact unless primary_key.is_a?(Array)
-      primary_key.each do |key|
-        record.send("#{key.to_s}=", attributes[key.to_s])
+      if primary_key = record.class.primary_key
+        record.send("#{primary_key.to_s}=", attributes[primary_key.to_s])
       end
 
       attrs, association_attrs = attributes_and_associations(record.class, attributes)
@@ -257,7 +255,7 @@ module ActsAsRevisionable
       # Check if the record already exists in the database and restore its state.
       # This must be done last because otherwise associations on an existing record
       # can be deleted when a revision is restored to memory.
-      exists = record.class.find(record.send(record.class.primary_key)) rescue nil
+      exists = record.class.find(record.send(primary_key)) rescue nil
       if exists
         record.instance_variable_set(:@new_record, nil) if record.instance_variable_defined?(:@new_record)
         # ActiveRecord 3.0.2 and 3.0.3 used @persisted instead of @new_record

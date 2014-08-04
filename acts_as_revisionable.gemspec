@@ -20,7 +20,6 @@ Gem::Specification.new do |s|
   s.require_paths = ['lib']
 
   s.add_runtime_dependency 'activerecord', '~> 3.2'
-  s.add_development_dependency 'composite_primary_keys', '= 5.0.13'
   s.add_development_dependency 'sqlite3', '>= 0'
   s.add_development_dependency 'rspec', '= 2.14.1'
 end

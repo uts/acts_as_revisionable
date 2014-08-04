@@ -23,18 +23,7 @@ describe ActsAsRevisionable::RevisionRecord do
         t.column :value, :integer
         t.column :test_revisionable_record_id, :integer
       end unless table_exists?
-
       self.primary_key = nil
-    end
-
-    class TestRevisionableAssociationComposite < ActiveRecord::Base
-      connection.create_table(table_name, :id => false) do |t|
-        t.column :first_id, :integer
-        t.column :second_id, :integer
-        t.column :name, :string
-        t.column :value, :integer
-      end unless table_exists?
-      self.primary_keys = "first_id", "second_id"
     end
 
     class TestRevisionableAssociationRecord < ActiveRecord::Base
@@ -80,7 +69,6 @@ describe ActsAsRevisionable::RevisionRecord do
 
       has_many :associations, :class_name => 'TestRevisionableAssociationRecord'
       has_many :legacy_associations, :class_name => 'TestRevisionableAssociationLegacyRecord'
-      has_many :composit_associations, :class_name => 'TestRevisionableAssociationComposite', :foreign_key => :first_id
       has_and_belongs_to_many :other_revisionable_records
       has_one :one_association, :class_name => 'TestRevisionableOneAssociationRecord'
 
@@ -288,18 +276,6 @@ describe ActsAsRevisionable::RevisionRecord do
     associated_record = record.legacy_associations.first
     associated_record.id.should == 1
     associated_record.name.should == 'legacy'
-    associated_record.value.should == 10
-  end
-
-  it "should be able to restore the has_many associations with composite primary keys" do
-    revision = ActsAsRevisionable::RevisionRecord.new(TestRevisionableRecord.new)
-    record = TestRevisionableRecord.new
-    revision.send(:restore_association, record, :composit_associations, {'first_id' => 1, 'second_id' => 2, 'name' => 'composit', 'value' => 10})
-    record.composit_associations.size.should == 1
-    associated_record = record.composit_associations.first
-    associated_record.first_id.should == 1
-    associated_record.second_id.should == 2
-    associated_record.name.should == 'composit'
     associated_record.value.should == 10
   end
 

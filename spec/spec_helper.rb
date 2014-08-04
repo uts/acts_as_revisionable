@@ -2,7 +2,6 @@ require 'logger'
 require 'stringio'
 
 require 'active_record'
-require 'composite_primary_keys'
 require 'sqlite3'
 require File.expand_path('../../lib/acts_as_revisionable', __FILE__)
 
