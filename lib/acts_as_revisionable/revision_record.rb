@@ -58,18 +58,6 @@ module ActsAsRevisionable
         connection.add_index table_name, :revisionable_id, :name => "#{table_name}_id"
         connection.add_index table_name, [:revisionable_type, :created_at, :trash], :name => "#{table_name}_type_and_created_at"
       end
-
-      # Update a version 1.0.x table to the latest version. This method only needs to be called
-      # from a migration if you originally created the table with a version 1.0.x version of the gem.
-      def update_version_1_table
-        # Added in version 1.1.0
-        connection.add_column(:revision_records, :trash, :boolean, :default => false)
-        connection.add_index :revision_records, :revisionable_id, :name => "#{table_name}_id"
-        connection.add_index :revision_records, [:revisionable_type, :created_at, :trash], :name => "#{table_name}_type_and_created_at"
-
-        # Removed in 1.1.0
-        connection.remove_index(:revision_records, :name => "revisionable")
-      end
     end
 
     # Create a revision record based on a record passed in. The attributes of the original record will
