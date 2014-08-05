@@ -30,7 +30,7 @@ Normally, revisions are only created when an update is done inside of a store_re
     model.update_has_many_records(params[:has_many])
 		model.save!
 	end
-	
+
 The revision will only be saved if the block successfully updates the record to the database.
 
 == Restoring Revisions

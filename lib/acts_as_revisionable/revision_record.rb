@@ -14,7 +14,7 @@ module ActsAsRevisionable
       def find_revision(klass, id, revision)
         find(:first, :conditions => {:revisionable_type => klass.base_class.to_s, :revisionable_id => id, :revision => revision})
       end
-      
+
       # Find the last revision record for a class.
       def last_revision(klass, id, revision = nil)
         find(:first, :conditions => {:revisionable_type => klass.base_class.to_s, :revisionable_id => id}, :order => "revision DESC")
@@ -54,21 +54,9 @@ module ActsAsRevisionable
           t.timestamp :created_at, :null => false
           t.boolean :trash, :default => false
         end
-        
+
         connection.add_index table_name, :revisionable_id, :name => "#{table_name}_id"
         connection.add_index table_name, [:revisionable_type, :created_at, :trash], :name => "#{table_name}_type_and_created_at"
-      end
-      
-      # Update a version 1.0.x table to the latest version. This method only needs to be called
-      # from a migration if you originally created the table with a version 1.0.x version of the gem.
-      def update_version_1_table
-        # Added in version 1.1.0
-        connection.add_column(:revision_records, :trash, :boolean, :default => false)
-        connection.add_index :revision_records, :revisionable_id, :name => "#{table_name}_id"
-        connection.add_index :revision_records, [:revisionable_type, :created_at, :trash], :name => "#{table_name}_type_and_created_at"
-
-        # Removed in 1.1.0
-        connection.remove_index(:revision_records, :name => "revisionable")
       end
     end
 
@@ -113,7 +101,7 @@ module ActsAsRevisionable
       restore_record(record, revision_attributes)
       return record
     end
-    
+
     # Mark this revision as being trash. When trash records are restored, all
     # their revision history is restored as well.
     def trash!
@@ -227,7 +215,7 @@ module ActsAsRevisionable
       rescue => e
         record.errors.add(association, "could not be restored from the revision: #{e.message}")
       end
-      
+
       if associated_record && !associated_record.errors.empty?
         record.errors.add(association, 'could not be restored from the revision')
       end
@@ -235,10 +223,8 @@ module ActsAsRevisionable
 
     # Restore a record and all its associations.
     def restore_record(record, attributes)
-      primary_key = record.class.primary_key
-      primary_key = [primary_key].compact unless primary_key.is_a?(Array)
-      primary_key.each do |key|
-        record.send("#{key.to_s}=", attributes[key.to_s])
+      if primary_key = record.class.primary_key
+        record.send("#{primary_key}=", attributes[primary_key.to_s])
       end
 
       attrs, association_attrs = attributes_and_associations(record.class, attributes)
@@ -253,11 +239,11 @@ module ActsAsRevisionable
       association_attrs.each_pair do |key, values|
         restore_association(record, key, values) if values
       end
-      
+
       # Check if the record already exists in the database and restore its state.
       # This must be done last because otherwise associations on an existing record
       # can be deleted when a revision is restored to memory.
-      exists = record.class.find(record.send(record.class.primary_key)) rescue nil
+      exists = record.class.find(record.send(primary_key)) rescue nil
       if exists
         record.instance_variable_set(:@new_record, nil) if record.instance_variable_defined?(:@new_record)
         # ActiveRecord 3.0.2 and 3.0.3 used @persisted instead of @new_record

@@ -6,7 +6,7 @@ describe ActsAsRevisionable::RevisionRecord do
   before :all do
     ActsAsRevisionable::Test.create_database
     ActsAsRevisionable::RevisionRecord.create_table
-    
+
     class TestRevisionableAssociationLegacyRecord < ActiveRecord::Base
       connection.create_table(table_name, :id => false) do |t|
         t.column :legacy_id, :integer
@@ -16,25 +16,14 @@ describe ActsAsRevisionable::RevisionRecord do
       end unless table_exists?
       self.primary_key = "legacy_id"
     end
-    
+
     class TestRevisionableOneAssociationRecord < ActiveRecord::Base
       connection.create_table(table_name, :id => false) do |t|
         t.column :name, :string
         t.column :value, :integer
         t.column :test_revisionable_record_id, :integer
       end unless table_exists?
-      
-      self.primary_key = nil if ActiveRecord::VERSION::MAJOR >= 3 && ActiveRecord::VERSION::MINOR > 0
-    end
-    
-    class TestRevisionableAssociationComposite < ActiveRecord::Base
-      connection.create_table(table_name, :id => false) do |t|
-        t.column :first_id, :integer
-        t.column :second_id, :integer
-        t.column :name, :string
-        t.column :value, :integer
-      end unless table_exists?
-      set_primary_keys "first_id", "second_id"
+      self.primary_key = nil
     end
 
     class TestRevisionableAssociationRecord < ActiveRecord::Base
@@ -43,7 +32,7 @@ describe ActsAsRevisionable::RevisionRecord do
         t.column :value, :integer
         t.column :test_revisionable_record_id, :integer
       end unless table_exists?
-      
+
       has_one :sub_association, :class_name => 'TestRevisionableSubAssociationRecord'
     end
 
@@ -77,16 +66,15 @@ describe ActsAsRevisionable::RevisionRecord do
         t.column :value, :integer
         t.column :test_revisionable_one_association_record_id, :integer
       end unless table_exists?
-      
+
       has_many :associations, :class_name => 'TestRevisionableAssociationRecord'
       has_many :legacy_associations, :class_name => 'TestRevisionableAssociationLegacyRecord'
-      has_many :composit_associations, :class_name => 'TestRevisionableAssociationComposite', :foreign_key => :first_id
       has_and_belongs_to_many :other_revisionable_records
       has_one :one_association, :class_name => 'TestRevisionableOneAssociationRecord'
-      
+
       acts_as_revisionable :associations => [{:associations => :sub_association}, :one_association, :other_revisionable_records]
     end
-    
+
     class OtherRevisionableRecord < ActiveRecord::Base
       connection.create_table(table_name) do |t|
         t.column :name, :string
@@ -94,7 +82,7 @@ describe ActsAsRevisionable::RevisionRecord do
         t.column :type, :string
       end unless table_exists?
     end
-    
+
     class TestInheritanceRecord < OtherRevisionableRecord
       def self.base_class
         OtherRevisionableRecord
@@ -291,18 +279,6 @@ describe ActsAsRevisionable::RevisionRecord do
     associated_record.value.should == 10
   end
 
-  it "should be able to restore the has_many associations with composite primary keys" do
-    revision = ActsAsRevisionable::RevisionRecord.new(TestRevisionableRecord.new)
-    record = TestRevisionableRecord.new
-    revision.send(:restore_association, record, :composit_associations, {'first_id' => 1, 'second_id' => 2, 'name' => 'composit', 'value' => 10})
-    record.composit_associations.size.should == 1
-    associated_record = record.composit_associations.first
-    associated_record.first_id.should == 1
-    associated_record.second_id.should == 2
-    associated_record.name.should == 'composit'
-    associated_record.value.should == 10
-  end
-
   it "should be able to restore the has_one associations" do
     revision = ActsAsRevisionable::RevisionRecord.new(TestRevisionableRecord.new)
     record = TestRevisionableRecord.new
@@ -343,13 +319,13 @@ describe ActsAsRevisionable::RevisionRecord do
     revision.data = Zlib::Deflate.deflate(Marshal.dump(attributes))
     TestRevisionableRecord.should_receive(:new).and_return(restored)
 
-    associations = mock(:associations)
+    associations = double(:associations)
     restored.should_receive(:associations).and_return(associations)
     associated_record = TestRevisionableAssociationRecord.new
     associations.should_receive(:build).and_return(associated_record)
 
     restored = revision.restore
-    
+
     restored.errors[:deleted_attribute].should include("could not be restored to \"abc\"")
     restored.errors[:bad_association].should include("could not be restored to {\"id\"=>3, \"value\"=>:val}")
     restored.errors[:associations].should include("could not be restored from the revision")
@@ -368,8 +344,8 @@ describe ActsAsRevisionable::RevisionRecord do
     revision = ActsAsRevisionable::RevisionRecord.new(TestRevisionableRecord.new(:name => 'name'))
     revision.revision = 20
     time = 2.weeks.ago
-    minimum_age = stub(:integer, :ago => time, :to_i => 1)
-    Time.stub!(:now).and_return(minimum_age)
+    minimum_age = double(:integer, :ago => time, :to_i => 1)
+    Time.stub(:now).and_return(minimum_age)
     ActsAsRevisionable::RevisionRecord.should_receive(:find).with(:first, :conditions => ['revisionable_type = ? AND revisionable_id = ? AND created_at <= ?', 'TestRevisionableRecord', 1, time], :offset => nil, :order => 'revision DESC').and_return(revision)
     ActsAsRevisionable::RevisionRecord.should_receive(:delete_all).with(['revisionable_type = ? AND revisionable_id = ? AND revision <= ?', 'TestRevisionableRecord', 1, 20])
     ActsAsRevisionable::RevisionRecord.truncate_revisions(TestRevisionableRecord, 1, :minimum_age => minimum_age)
@@ -392,7 +368,7 @@ describe ActsAsRevisionable::RevisionRecord do
     ActsAsRevisionable::RevisionRecord.should_receive(:find).with(:first, :conditions => {:revisionable_type => 'TestRevisionableRecord', :revisionable_id => 1, :revision => 2}).and_return(revision)
     ActsAsRevisionable::RevisionRecord.find_revision(TestRevisionableRecord, 1, 2).should == revision
   end
-  
+
   it "should find the last revision" do
     revision = ActsAsRevisionable::RevisionRecord.new(TestRevisionableRecord.new(:name => 'name'))
     ActsAsRevisionable::RevisionRecord.should_receive(:find).with(:first, :conditions => {:revisionable_type => 'TestRevisionableRecord', :revisionable_id => 1}, :order => "revision DESC").and_return(revision)
@@ -442,7 +418,7 @@ describe ActsAsRevisionable::RevisionRecord do
     ActsAsRevisionable::RevisionRecord.truncate_revisions(TestRevisionableRecord, original.id, :limit => 0)
     ActsAsRevisionable::RevisionRecord.count.should == 0
   end
-  
+
   it "should delete revisions for models in a class that no longer exist if they are older than a specified number of seconds" do
     record_1 = TestRevisionableRecord.create!(:name => 'record_1')
     record_2 = TestRevisionableAssociationLegacyRecord.create!(:name => 'record_2')
