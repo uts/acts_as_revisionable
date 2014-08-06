@@ -305,7 +305,7 @@ module ActsAsRevisionable
         end
       elsif meta_options.is_a?(Array)
         meta_options.each do |attribute|
-          set_revision_meta_attribute(revision, attribute, attribute.to_sym)
+          set_revision_meta_attributes(attribute, revision, base_record)
         end
       elsif meta_options
         value = base_record.send(meta_options)
