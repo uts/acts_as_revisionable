@@ -85,6 +85,15 @@ describe ActsAsRevisionable do
       connection.add_column(table_name, :version, :integer)
     end
 
+    class RevisionRecord3 < ActsAsRevisionable::RevisionRecord
+      self.table_name = "revision_records_3"
+      create_table
+      connection.add_column(table_name, :album, :string)
+      connection.add_column(table_name, :label, :string)
+      connection.add_column(table_name, :updated_by, :string)
+      connection.add_column(table_name, :version, :integer)
+    end
+
     class OtherRevisionableTestModel < ActiveRecord::Base
       connection.create_table(table_name) do |t|
         t.string :name
@@ -102,6 +111,15 @@ describe ActsAsRevisionable do
       end unless table_exists?
       attr_accessor :label
       acts_as_revisionable :meta => :label, :class_name => RevisionRecord2
+    end
+
+    class YetAnotherRevisionableTestModel < ActiveRecord::Base
+      connection.create_table(table_name) do |t|
+        t.string :name
+        t.string :updated_by
+      end unless table_exists?
+      attr_accessor :label, :album
+      acts_as_revisionable :meta => [:label, :album], :class_name => RevisionRecord3
     end
 
     module ActsAsRevisionable
@@ -224,6 +242,19 @@ describe ActsAsRevisionable do
         record.save!
       end
       record.last_revision.label.should == "Alternative Tentacles"
+    end
+
+    it "should bring an array of non-database backed accessor values forward into revisions if used as meta data" do
+      record = YetAnotherRevisionableTestModel.new(:name => "test")
+      record.label = "Alternative Tentacles"
+      record.album = "Fresh Fruit for Rotting Vegetables"
+      record.save!
+      record.store_revision do
+        record.name = "new name"
+        record.save!
+      end
+      record.last_revision.label.should == "Alternative Tentacles"
+      record.last_revision.album.should == "Fresh Fruit for Rotting Vegetables"
     end
 
     it "should always store revisions whenever a record is saved if :on_update is true" do
