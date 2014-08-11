@@ -32,6 +32,7 @@ module ActsAsRevisionable
     #   acts_as_revisionable :meta => {
     #     :updated_by => :last_updated_by,
     #     :label => lambda{|record| "Updated by #{record.updated_by} at #{record.updated_at}"},
+    #     :before_store_revision => :callback_executed_on_read_only_object_to_be_versioned
     #     :version => 1
     #   }
     #
@@ -202,7 +203,7 @@ module ActsAsRevisionable
     end
 
     # Call this method to implement revisioning. The object changes should happen inside the block.
-    def store_revision
+    def store_revision(*args)
       if new_record? || @revisions_disabled
         return yield
       else
@@ -213,7 +214,11 @@ module ActsAsRevisionable
             begin
               read_only = self.class.first(:conditions => {self.class.primary_key => self.id}, :readonly => true)
               if read_only
-                revision = read_only.create_revision!(self)
+                callback = self.class.acts_as_revisionable_options[:before_store_revision]
+                if callback
+                  read_only.send(self.class.acts_as_revisionable_options[:before_store_revision], *args)
+                end
+                revision = read_only.create_revision!
                 truncate_revisions!
               end
             rescue => e
@@ -244,17 +249,17 @@ module ActsAsRevisionable
     end
 
     # Build a revision record based on this record
-    def build_revision(base_record = self)
+    def build_revision
       revision_options = self.class.acts_as_revisionable_options
       revision = revision_record_class.new(self, revision_options[:encoding])
-      set_revision_meta_attributes(revision_options[:meta], revision, base_record)
+      set_revision_meta_attributes(revision_options[:meta], revision)
 
       revision
     end
 
     # Create a revision record based on this record and save it to the database.
-    def create_revision!(base_record = self)
-      revision = build_revision(base_record)
+    def create_revision!
+      revision = build_revision
       revision.save!
       revision
     end
@@ -298,18 +303,17 @@ module ActsAsRevisionable
       end
     end
 
-    def set_revision_meta_attributes(meta_options, revision, base_record = self)
+    def set_revision_meta_attributes(meta_options, revision)
       if meta_options.is_a?(Hash)
         meta_options.each do |attribute, value|
           set_revision_meta_attribute(revision, attribute, value)
         end
       elsif meta_options.is_a?(Array)
         meta_options.each do |attribute|
-          set_revision_meta_attributes(attribute, revision, base_record)
+          set_revision_meta_attribute(revision, attribute, attribute.to_sym)
         end
       elsif meta_options
-        value = base_record.send(meta_options)
-        set_revision_meta_attribute(revision, meta_options, value)
+        set_revision_meta_attribute(revision, meta_options, meta_options.to_sym)
       end
     end
 
