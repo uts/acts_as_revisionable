@@ -12,12 +12,16 @@ module ActsAsRevisionable
     class << self
       # Find a specific revision record.
       def find_revision(klass, id, revision)
-        find(:first, :conditions => {:revisionable_type => klass.base_class.to_s, :revisionable_id => id, :revision => revision})
+        where(:revisionable_type => klass.base_class.to_s).
+          where(:revisionable_id => id).
+          where(:revision => revision).first
       end
 
       # Find the last revision record for a class.
       def last_revision(klass, id, revision = nil)
-        find(:first, :conditions => {:revisionable_type => klass.base_class.to_s, :revisionable_id => id}, :order => "revision DESC")
+        where(:revisionable_type => klass.base_class.to_s).
+          where(:revisionable_id => id).
+          order("revision DESC").first
       end
 
       # Truncate the revisions for a record. Available options are :limit and :max_age.
@@ -30,7 +34,7 @@ module ActsAsRevisionable
           conditions << options[:minimum_age].ago
         end
 
-        start_deleting_revision = find(:first, :conditions => conditions, :order => 'revision DESC', :offset => options[:limit])
+        start_deleting_revision = where(conditions).order("revision DESC").offset(options[:limit]).first
         if start_deleting_revision
           delete_all(['revisionable_type = ? AND revisionable_id = ? AND revision <= ?', revisionable_type.base_class.to_s, revisionable_id, start_deleting_revision.revision])
         end
@@ -40,7 +44,7 @@ module ActsAsRevisionable
       # The +revisionable_type+ argument specifies the class to delete revision records for.
       def empty_trash(revisionable_type, max_age)
         sql = "revisionable_id IN (SELECT revisionable_id from #{table_name} WHERE created_at <= ? AND revisionable_type = ? AND trash = ?) AND revisionable_type = ?"
-        args = [max_age.ago, revisionable_type.name, true, revisionable_type.name]
+        args = [max_age.seconds.ago, revisionable_type.name, true, revisionable_type.name]
         delete_all([sql] + args)
       end
 
@@ -194,8 +198,8 @@ module ActsAsRevisionable
           if association_attributes.kind_of?(Array)
             # Pop all the associated records to remove all records. In Rails 3.2 setting the value of the list
             # will immediately affect the database
-            records = record.send(association)
-            while records.pop do
+            records = record.send(association).reload
+            while records.target.pop do
               # no-op
             end
             association_attributes.each do |attrs|
