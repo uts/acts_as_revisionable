@@ -155,7 +155,7 @@ module ActsAsRevisionable
           associations.each_pair do |association, sub_associations|
             associated_records = record.send(association)
 
-            reflection = record.class.reflections[association].macro
+            reflection = record.class.reflections[association.to_s].macro
 
             if reflection == :has_and_belongs_to_many
               associated_records = associated_records.collect{|r| r}
